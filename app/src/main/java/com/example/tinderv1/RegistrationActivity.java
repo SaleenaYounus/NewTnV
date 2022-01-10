@@ -16,6 +16,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import com.firebase.geofire.GeoFireUtils;
+import com.firebase.geofire.GeoLocation;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
@@ -23,7 +25,6 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.firestore.DocumentReference;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,7 +38,9 @@ public class RegistrationActivity extends AppCompatActivity {
     private EditText mEmail, mPassword, mName;
     private TextView textView;
 
+
     private RadioGroup mRadioGroup;
+
 
     private FirebaseAuth mAuth;
     private FirebaseAuth.AuthStateListener firebaseAuthStateListener;
@@ -48,7 +51,7 @@ public class RegistrationActivity extends AppCompatActivity {
 
     // GPSTracker class
     GPSTracker gps;
-    private DocumentReference db;
+    // private DocumentReference db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,30 +86,10 @@ public class RegistrationActivity extends AppCompatActivity {
 
                     double latitude = gps.getLatitude();
                     double longitude = gps.getLongitude();
-                 /*   // Compute the GeoHash for a lat/lng point
-                    double lat = latitude ;
-                    double lng = longitude;
-                    String hash = GeoFireUtils.getGeoHashForLocation(new GeoLocation(lat, lng));
+                    String hash = GeoFireUtils.getGeoHashForLocation(new GeoLocation(latitude, longitude));
+                    textView.append("\n" +"geohash:"+hash+"\nLat:" + latitude +"\nLong:" + longitude);
 
-// Add the hash and the lat/lng to the document. We will use the hash
-// for queries and the lat/lng for distance comparisons.
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("geohash", hash);
-                    updates.put("lat", lat);
-                    updates.put("lng", lng);
 
-                    DocumentReference londonRef = db.collection("cities").document("LON");
-                    londonRef.update(updates)
-                            .addOnCompleteListener(new OnCompleteListener<Void>() {
-                                @Override
-                                public void onComplete(@NonNull Task<Void> task) {
-                                    // ...
-                                }
-                            });*/
-                    textView.append("\n" +"\nLat:" + latitude +"\nLong:" + longitude);
-                    // \n is for new line
-                   // Toast.makeText(getApplicationContext(), "Your Location is - \nLat: "
-                        //    + latitude + "\nLong: " + longitude, Toast.LENGTH_LONG).show();
                 }else{
                     // can't get location
                     // GPS or Network is not enabled
@@ -117,12 +100,11 @@ public class RegistrationActivity extends AppCompatActivity {
             }
         });
 
-
         mAuth = FirebaseAuth.getInstance();
         firebaseAuthStateListener = new FirebaseAuth.AuthStateListener() {
 
 
-         @Override
+            @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
                 if (user !=null){
@@ -136,12 +118,11 @@ public class RegistrationActivity extends AppCompatActivity {
 
 
         mRegister = (Button) findViewById(R.id.register);
-        mLocation = (Button) findViewById(R.id.userlocation);
+
 
         mEmail = (EditText) findViewById(R.id.email);
         mPassword = (EditText) findViewById(R.id.password);
         mName = (EditText) findViewById(R.id.name);
-       // mCoordinates = (EditText) findViewById(R.id.coordinates);
 
         mRadioGroup = (RadioGroup) findViewById(R.id.radioGroup);
 
@@ -161,23 +142,35 @@ public class RegistrationActivity extends AppCompatActivity {
                 final String email = mEmail.getText().toString();
                 final String password = mPassword.getText().toString();
                 final String name = mName.getText().toString();
+                double latitude = gps.latitude;
+                double longitude = gps.longitude;
+
+                String hash = GeoFireUtils.getGeoHashForLocation(new GeoLocation(latitude, longitude));
+
+
                 mAuth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(RegistrationActivity.this, new OnCompleteListener<AuthResult>() {
+
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if(!task.isSuccessful()){
+                            task.getException().toString();
                             Toast.makeText(RegistrationActivity.this, "sign up error", Toast.LENGTH_SHORT).show();
                         }else{
+
                             String userId = mAuth.getCurrentUser().getUid();
                             DatabaseReference currentUserDb = FirebaseDatabase.getInstance().getReference().child("Users").child(userId);
                             Map userInfo = new HashMap<>();
                             userInfo.put("name", name);
-                            userInfo.put("Latitude",gps.getLatitude());
-                            userInfo.put("Longitude",gps.getLongitude());
+
+                            userInfo.put("geohash", hash);
+                            userInfo.put("latitude", latitude);
+                            userInfo.put("longitude", longitude);
                             userInfo.put("sex", radioButton.getText().toString());
                             userInfo.put("profileImageUrl", "default");
                             currentUserDb.updateChildren(userInfo);
                         }
                     }
+
                 });
             }
         });
